@@ -1,5 +1,34 @@
 const eventsList = document.querySelector("#events");
 
+function isValidEvent(event) {
+  if (
+    event === null ||
+    typeof event !== "object" ||
+    typeof event.repository !== "string" ||
+    event.repository.trim() === "" ||
+    typeof event.description !== "string" ||
+    typeof event.starredAt !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(event.starredAt)
+  ) {
+    return false;
+  }
+
+  const date = new Date(`${event.starredAt}T00:00:00Z`);
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.toISOString().slice(0, 10) !== event.starredAt
+  ) {
+    return false;
+  }
+
+  try {
+    const url = new URL(event.url);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 async function loadStarredRepositories() {
   try {
     const response = await fetch("events.json");
@@ -12,7 +41,18 @@ async function loadStarredRepositories() {
       throw new Error("Repository data must be a list");
     }
 
+    if (!events.every(isValidEvent)) {
+      throw new Error("Repository data contains an invalid entry");
+    }
+
     eventsList.replaceChildren();
+
+    if (events.length === 0) {
+      const message = document.createElement("li");
+      message.textContent = "No starred repositories yet.";
+      eventsList.append(message);
+      return;
+    }
 
     for (const event of events) {
       const item = document.createElement("li");
